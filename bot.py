@@ -26,11 +26,9 @@ def get_sheet():
     )
     gc = gspread.authorize(creds)
     sh = gc.open_by_key(SHEETS_ID)
-    try:
-        ws = sh.worksheet("📤 На публикацию")
-    except:
-        ws = sh.add_worksheet("📤 На публикацию", rows=1000, cols=5)
-        ws.append_row(["ID", "Текст поста", "Статус", "Дата добавления", "Message ID"])
+    # Берём первый лист (не ищем по имени)
+    ws = sh.get_worksheet(0)
+    logger.info(f"Открыт лист: {ws.title}")
     return ws
 
 async def check_new_posts(app: Application):
@@ -38,10 +36,13 @@ async def check_new_posts(app: Application):
         try:
             ws = get_sheet()
             rows = ws.get_all_records()
+            logger.info(f"Строк в таблице: {len(rows)}")
             for i, row in enumerate(rows, start=2):
+                logger.info(f"Строка {i}: {row}")
                 if row.get("Статус") == "pending" and row.get("Текст поста"):
-                    post_text = row["Текст поста"]
+                    post_text = str(row["Текст поста"])
                     post_id = row.get("ID", f"P{i}")
+                    logger.info(f"Найден pending пост: {post_id}")
                     keyboard = InlineKeyboardMarkup([
                         [
                             InlineKeyboardButton("✅ Опубликовать", callback_data=f"pub:{i}"),
@@ -49,7 +50,7 @@ async def check_new_posts(app: Application):
                         ],
                         [InlineKeyboardButton("✏️ Редактировать", callback_data=f"edit:{i}")]
                     ])
-                    preview = f"📝 *Новый пост для @sravugli*\n\n{post_text[:800]}{'...' if len(post_text) > 800 else ''}"
+                    preview = f"📝 *Новый пост для @sravugli*\n\n{post_text[:800]}"
                     msg = await app.bot.send_message(
                         chat_id=ADMIN_CHAT_ID,
                         text=preview,
@@ -58,9 +59,9 @@ async def check_new_posts(app: Application):
                     )
                     ws.update_cell(i, 3, "waiting_approval")
                     ws.update_cell(i, 5, str(msg.message_id))
-                    logger.info(f"Пост {post_id} отправлен на подтверждение")
+                    logger.info(f"Пост {post_id} отправлен!")
         except Exception as e:
-            logger.error(f"Ошибка при проверке постов: {e}\n{traceback.format_exc()}")
+            logger.error(f"Ошибка: {e}\n{traceback.format_exc()}")
         await asyncio.sleep(CHECK_INTERVAL)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
