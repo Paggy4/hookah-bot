@@ -7,6 +7,7 @@ from datetime import datetime
 from threading import Thread
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes
 import gspread
@@ -28,6 +29,7 @@ API_SECRET = os.environ.get("API_SECRET", "hookah2024secret")
 
 # Flask app
 flask_app = Flask(__name__)
+CORS(flask_app)
 
 # Telegram app (global)
 tg_app = None
